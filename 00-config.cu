@@ -8,7 +8,7 @@ static void z_print_props(int dev, cudaDeviceProp* prop)
 	printf("\tname:                      %s\n", prop->name);
 	printf("\ttotalGlobalMem:            %u\n", prop->totalGlobalMem);
 	printf("\tsharedMemPerBlock:         %u\n", prop->sharedMemPerBlock);
-    printf("\tregsPerBlock:              %d\n", prop->regsPerBlock);
+	printf("\tregsPerBlock:              %d\n", prop->regsPerBlock);
 	printf("\twarpSize:                  %d\n", prop->warpSize);
 	printf("\tmemPitch:                  %u\n", prop->memPitch);
 	printf("\tmaxThreadsPerBlock:        %d\n", prop->maxThreadsPerBlock);
