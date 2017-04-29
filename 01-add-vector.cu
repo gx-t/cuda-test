@@ -70,7 +70,7 @@ main(void)
 		if((res = copy_input_to_device(dev_arr, arr, sizeof(arr))))
 			break;
     
-	vectorAdd<<<numElements/200, 200>>>(dev_arr, numElements);
+	vectorAdd<<<numElements/250, 250>>>(dev_arr, numElements);
 
 		if((res = copy_output_to_host(arr, dev_arr, sizeof(arr))))
 			break;
