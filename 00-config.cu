@@ -36,22 +36,22 @@ static int z_print_props()
 		printf("\tminor:                     %d\n", prop.minor);
 		printf("\ttextureAlignment:          %u\n", prop.textureAlignment);
 		printf("\ttexturePitchAlignment:     %u\n", prop.texturePitchAlignment);
-		//    int    printf("\tdeviceOverlap;              /**< Device can concurrently copy memory and execute a kernel. Deprecated. Use instead asyncEngineCount. */
-		//    int    printf("\tmultiProcessorCount;        /**< Number of multiprocessors on device */
-		//    int    printf("\tkernelExecTimeoutEnabled;   /**< Specified whether there is a run time limit on kernels */
-		//    int    printf("\tintegrated;                 /**< Device is integrated as opposed to discrete */
-		//    int    printf("\tcanMapHostMemory;           /**< Device can map host memory with cudaHostAlloc/cudaHostGetDevicePointer */
-		//    int    printf("\tcomputeMode;                /**< Compute mode (See ::cudaComputeMode) */
-		//    int    printf("\tmaxTexture1D;               /**< Maximum 1D texture size */
-		//    int    printf("\tmaxTexture1DMipmap;         /**< Maximum 1D mipmapped texture size */
-		//    int    printf("\tmaxTexture1DLinear;         /**< Maximum size for 1D textures bound to linear memory */
-		//    int    printf("\tmaxTexture2D[2];            /**< Maximum 2D texture dimensions */
-		//    int    printf("\tmaxTexture2DMipmap[2];      /**< Maximum 2D mipmapped texture dimensions */
-		//    int    printf("\tmaxTexture2DLinear[3];      /**< Maximum dimensions (width, height, pitch) for 2D textures bound to pitched memory */
-		//    int    printf("\tmaxTexture2DGather[2];      /**< Maximum 2D texture dimensions if texture gather operations have to be performed */
-		//    int    printf("\tmaxTexture3D[3];            /**< Maximum 3D texture dimensions */
-		//    int    printf("\tmaxTexture3DAlt[3];         /**< Maximum alternate 3D texture dimensions */
-		//    int    printf("\tmaxTextureCubemap;          /**< Maximum Cubemap texture dimensions */
+		printf("\tdeviceOverlap:             %d\n", prop.deviceOverlap);
+		printf("\tmultiProcessorCount:       %d\n", prop.multiProcessorCount);
+		printf("\tkernelExecTimeoutEnabled:  %d\n", prop.kernelExecTimeoutEnabled);
+		printf("\tintegrated:                %d\n", prop.integrated);
+		printf("\tcanMapHostMemory:          %d\n", prop.canMapHostMemory);
+		printf("\tcomputeMode:               %d\n", prop.computeMode);
+		printf("\tmaxTexture1D:              %d\n", prop.maxTexture1D);
+		printf("\tmaxTexture1DMipmap:        %d\n", prop.maxTexture1DMipmap);
+		printf("\tmaxTexture1DLinear:        %d\n", prop.maxTexture1DLinear);
+		printf("\tmaxTexture2D[2]:           %d, %d\n", prop.maxTexture2D[0], prop.maxTexture2D[1]);
+		printf("\tmaxTexture2DMipmap[2]:     %d, %d\n", prop.maxTexture2DMipmap[0], prop.maxTexture2DMipmap[1]);
+		printf("\tmaxTexture2DLinear[3]:     %d, %d, %d\n", prop.maxTexture2DLinear[0], prop.maxTexture2DLinear[1], prop.maxTexture2DLinear[2]);
+		printf("\tmaxTexture2DGather[2]:     %d, %d\n", prop.maxTexture2DGather[0], prop.maxTexture2DGather[1]);
+		printf("\tmaxTexture3D[3]:           %d, %d, %d\n", prop.maxTexture3D[0], prop.maxTexture3D[1], prop.maxTexture3D[2]);
+		printf("\tmaxTexture3DAlt[3]:        %d, %d, %d\n", prop.maxTexture3DAlt[0], prop.maxTexture3DAlt[1], prop.maxTexture3DAlt[2]);
+		printf("\tmaxTextureCubemap:         %d\n", prop.maxTextureCubemap);
 		//    int    printf("\tmaxTexture1DLayered[2];     /**< Maximum 1D layered texture dimensions */
 		//    int    printf("\tmaxTexture2DLayered[3];     /**< Maximum 2D layered texture dimensions */
 		//    int    printf("\tmaxTextureCubemapLayered[2];/**< Maximum Cubemap layered texture dimensions */
