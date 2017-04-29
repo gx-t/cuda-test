@@ -1,6 +1,6 @@
 rel: 00-rel 01-rel
 
-deb: 00-deb 01-rel
+deb: 00-deb 01-deb
 
 00-deb:
 	nvcc -g 00-config.cu -o 00-config
