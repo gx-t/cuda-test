@@ -6,13 +6,18 @@ struct ADD_ELEMENT {
 	float a, b, c;
 };
 
+static __device__ float doAdd(float a, float b)
+{
+	return a + b;
+}
+
 __global__ void vectorAdd(struct ADD_ELEMENT* el, int numElements)
 {
 	int i = blockDim.x * blockIdx.x + threadIdx.x;
 
 	if (i < numElements)
 	{
-		el[i].c = el[i].a + el[i].b;
+		el[i].c = doAdd(el[i].a, el[i].b);
 	}
 }
 
