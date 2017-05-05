@@ -5,8 +5,8 @@ __global__ void reduce_0x20(float* rr)
 {
 	float __shared__ sdata[0x40];
 
+	volatile uint32_t tid = threadIdx.x;
 	uint32_t bid = blockIdx.x;
-	uint32_t tid = threadIdx.x;
 	uint32_t i   = blockDim.x * bid + tid;
 
 	sdata[tid] = rr[i] + rr[i + 0x20];
