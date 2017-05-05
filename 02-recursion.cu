@@ -22,26 +22,6 @@ __global__ void fibonacci(uint32_t* el, size_t numElements)
 	}
 }
 
-static void init_elements(uint32_t* arr, uint32_t numElements)
-{
-	while(numElements --)
-	{
-		arr[numElements] = 0;
-	}
-
-}
-
-static int copy_input_to_device(void* dest, void* src, size_t numBytes)
-{
-	cudaError_t err = cudaMemcpy(dest, src, numBytes, cudaMemcpyHostToDevice);
-	if(cudaSuccess != err)
-	{
-		fprintf(stderr, "copy input - cudaMemcpy: %s\n", cudaGetErrorString(err));
-		return 3;
-	}
-	return 0;
-}
-
 static int copy_output_to_host(void* dest, void* src, size_t numBytes)
 {
 	cudaError_t err = cudaMemcpy(dest, src, numBytes, cudaMemcpyDeviceToHost);
@@ -77,12 +57,7 @@ main(void)
 		return 1;
 	}
 
-	init_elements(arr, numElements);
-
 	do {
-		if((res = copy_input_to_device(dev_arr, arr, sizeof(arr))))
-			break;
-    
 		fibonacci<<<numElements, 1>>>(dev_arr, numElements);
 
 		if((res = copy_output_to_host(arr, dev_arr, sizeof(arr))))

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <cuda_runtime.h>
 #include <cuda_device_runtime_api.h>
 
@@ -87,8 +88,98 @@ static int z_print_props()
 	return 0;
 }
 
+struct BLOCK_THREAD_IDX {
+	uint32_t block_idx;
+	uint32_t thread_idx;
+};
+
+static void init_elements(struct BLOCK_THREAD_IDX* arr, int numElements)
+{
+	while(numElements --)
+	{
+		arr->block_idx = 0;
+		arr->thread_idx = 0;
+		arr ++;
+	}
+}
+
+static int dev_alloc(void** buff, size_t num_bytes)
+{
+	cudaError_t err = cudaSuccess;
+	err = cudaMalloc((void**)buff, num_bytes);
+	if(cudaSuccess != err) {
+		fprintf(stderr, "cudaMalloc: %s\n", cudaGetErrorString(err));
+		return 1;
+	}
+	return 0;
+}
+
+static int dev_free(void* buff)
+{
+	cudaError_t err = cudaSuccess;
+	err = cudaFree(buff);
+	if(cudaSuccess != err)
+	{
+		fprintf(stderr, "cudaFree: %s\n", cudaGetErrorString(err));
+		return 2;
+	}
+	return 0;
+}
+
+static int copy_output_to_host(void* dest, void* src, int numBytes)
+{
+	cudaError_t err = cudaMemcpy(dest, src, numBytes, cudaMemcpyDeviceToHost);
+	if(cudaSuccess != err)
+	{
+		fprintf(stderr, "copy output - cudaMemcpy: %s\n", cudaGetErrorString(err));
+		return 4;
+	}
+	return 0;
+}
+
+__global__ void collect(struct BLOCK_THREAD_IDX* el)
+{
+	int i = blockDim.x * blockIdx.x + threadIdx.x;
+	el[i].block_idx = blockIdx.x;
+	el[i].thread_idx = threadIdx.x;
+}
+
+static void print_block_thread(struct BLOCK_THREAD_IDX* arr, int numElements)
+{
+	while(numElements --) {
+		printf("\tblockIdx.x = %u, threadIdx.x = %u\n", arr->block_idx, arr->thread_idx);
+		arr ++;
+	}
+}
+
+static int z_print_block_thread()
+{
+	int res = 0;
+	int num_blocks = 16;
+	int num_threads = 4;
+	int numElements = num_blocks * num_threads;
+	struct BLOCK_THREAD_IDX arr[numElements];
+	struct BLOCK_THREAD_IDX* dev_arr = 0;
+
+	if((res = dev_alloc((void**)&dev_arr, sizeof(arr))))
+		return res;
+
+	init_elements(arr, numElements);
+
+	collect<<<num_blocks, num_threads>>>(dev_arr);
+
+	if((res = copy_output_to_host(arr, dev_arr, sizeof(arr))) || (res = dev_free(dev_arr)))
+		return res;
+
+	print_block_thread(arr, numElements);
+
+	return res;
+}
+
 main(void)
 {
-	return z_print_props();
+	int res = 0;
+	(res = z_print_props()) || (res = z_print_block_thread());
+	return res;
 }
 
