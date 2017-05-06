@@ -1,33 +1,65 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <time.h>
 
-__global__ void reduce_0x20(float* rr)
+__global__ void reduce_0x400(float* rr)
 {
-	float __shared__ sdata[0x40];
-
 	volatile uint32_t tid = threadIdx.x;
-	uint32_t bid = blockIdx.x;
-	uint32_t i   = blockDim.x * bid + tid;
+	volatile uint32_t bid = blockIdx.x;
+	volatile uint32_t i = 2 * blockDim.x * bid + tid;
 
-	sdata[tid] = rr[i] + rr[i + 0x20];
-	sdata[tid] = sdata[tid] + sdata[tid + 0x10];
-	sdata[tid] = sdata[tid] + sdata[tid + 0x08];
-	sdata[tid] = sdata[tid] + sdata[tid + 0x04];
-	sdata[tid] = sdata[tid] + sdata[tid + 0x01];
-	sdata[tid] = sdata[tid] + sdata[tid + 0x00];
+	__shared__ float ss[0x400];
 
-	rr[bid]    = sdata[0x01];
+	ss[tid] = rr[i] + rr[i + 0x400];
+	__syncthreads();
+
+	if(tid & 0x200)
+		return;
+	ss[tid] += ss[tid + 0x200];
+	__syncthreads();
+	if(tid & 0x100)
+		return;
+	ss[tid] += ss[tid + 0x100];
+	__syncthreads();
+	if(tid & 0x080)
+		return;
+	ss[tid] += ss[tid + 0x080];
+	__syncthreads();
+	if(tid & 0x040)
+		return;
+	ss[tid] += ss[tid + 0x040];
+	__syncthreads();
+	if(tid & 0x020)
+		return;
+	ss[tid] += ss[tid + 0x020];
+	ss[tid] += ss[tid + 0x010];
+	ss[tid] += ss[tid + 0x008];
+	ss[tid] += ss[tid + 0x004];
+	ss[tid] += ss[tid + 0x002];
+	ss[tid] += ss[tid + 0x001];
+	if(0 == tid)
+		rr[bid] = ss[0];
 }
 
 static void init_elements(float* rr, uint32_t numElements)
 {
-	float i = 3.14;
+	srand48(time(0));
 	while(numElements --)
 	{
-		*rr++ = i;// ++;
+		*rr++ = drand48();
 	}
 }
 
+static float host_sum_elements(float* rr, uint32_t numElements)
+{
+	float res = 0;
+	while(numElements --)
+	{
+		res += *rr++;
+	}
+	return res;
+}
 
 static int dev_alloc(void** buff, size_t num_bytes)
 {
@@ -78,23 +110,24 @@ main(void)
 	float rr[numElements];
 	float* dev_rr = 0;
 	int res = 0;
+	float gold = 0;
 
 	if((res = dev_alloc((void**)&dev_rr, data_size)))
 		return res;
 
 	init_elements(rr, numElements);
+	gold = host_sum_elements(rr, 4096);
 
 	do {
 		if((res = copy_input_to_device(dev_rr, rr, data_size)))
 			break;
     
-		reduce_0x20<<<64, 32>>>(dev_rr);
-		reduce_0x20<<<1, 32>>>(dev_rr);
-
+		reduce_0x400<<<2, 1024>>>(dev_rr);
 		if((res = copy_output_to_host(rr, dev_rr, data_size)))
 			break;
 
-		print_output(rr, 32);
+		printf("GOLD: %.8g\n", gold);
+		printf("CALC: %.8g\n", rr[0] + rr[1]);
 	}while(0);
 
 	err = cudaFree(dev_rr);
