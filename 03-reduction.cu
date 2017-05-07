@@ -72,12 +72,13 @@ static int stop_time(cudaEvent_t start, cudaEvent_t stop, float* gpu_time)
 	return res;
 }
 
+
 struct RR_2x2048 {
 	float input[2][2048];
 	float output[2];
 };
 
-__global__ void reduce_2x2048(struct RR_2x2048* rr)
+__global__ static void reduce_2x2048(struct RR_2x2048* rr)
 {
 	volatile uint32_t i = threadIdx.x;
 	volatile uint32_t j = blockIdx.x;
