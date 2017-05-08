@@ -14,51 +14,56 @@ static int dev_alloc(void** buff, size_t num_bytes)
 	return 0;
 }
 
-static int start_time(cudaEvent_t* start, cudaEvent_t* stop)
+struct START_STOP {
+	cudaEvent_t start;
+	cudaEvent_t stop;
+};
+
+static int start_time(struct START_STOP* ss)
 {
 	cudaError_t err = cudaSuccess;
 	
-	err = cudaEventCreate(start);
+	err = cudaEventCreate(&ss->start);
 	if(cudaSuccess != err) {
 		fprintf(stderr, "cudaEventCreate: %s\n", cudaGetErrorString(err));
 		return 4;
 	}
 
-	err = cudaEventCreate(stop);
+	err = cudaEventCreate(&ss->stop);
 	if(cudaSuccess != err) {
-		cudaEventDestroy(*start);
+		cudaEventDestroy(ss->start);
 		fprintf(stderr, "cudaEventCreate: %s\n", cudaGetErrorString(err));
 		return 5;
 	}
 
-	err = cudaEventRecord(*start, 0);
+	err = cudaEventRecord(ss->start, 0);
 	if(cudaSuccess != err) {
-		cudaEventDestroy(*start);
-		cudaEventDestroy(*stop);
+		cudaEventDestroy(ss->start);
+		cudaEventDestroy(ss->stop);
 		fprintf(stderr, "cudaEventRecord: %s\n", cudaGetErrorString(err));
 		return 6;
 	}
 	return 0;
 }
 
-static int stop_time(cudaEvent_t start, cudaEvent_t stop, float* gpu_time)
+static int stop_time(struct START_STOP* ss, float* gpu_time)
 {
 	cudaError_t err = cudaSuccess;
 	int res = 0;
 	do {
-		err = cudaEventRecord(stop, 0);
+		err = cudaEventRecord(ss->stop, 0);
 		if(cudaSuccess != err) {
 			fprintf(stderr, "cudaEventRecord: %s\n", cudaGetErrorString(err));
 			res = 7;
 			break;
 		}
-		err = cudaEventSynchronize(stop);
+		err = cudaEventSynchronize(ss->stop);
 		if(cudaSuccess != err) {
 			fprintf(stderr, "cudaEventSynchronize: %s\n", cudaGetErrorString(err));
 			res = 8;
 			break;
 		}
-		err = cudaEventElapsedTime(gpu_time, start, stop);
+		err = cudaEventElapsedTime(gpu_time, ss->start, ss->stop);
 		if(cudaSuccess != err) {
 			fprintf(stderr, "cudaEventElapsedTime: %s\n", cudaGetErrorString(err));
 			res = 9;
@@ -67,8 +72,8 @@ static int stop_time(cudaEvent_t start, cudaEvent_t stop, float* gpu_time)
 
 	} while(0);
 	
-	cudaEventDestroy(start);
-	cudaEventDestroy(stop);
+	cudaEventDestroy(ss->start);
+	cudaEventDestroy(ss->stop);
 	return res;
 }
 
@@ -129,22 +134,22 @@ static void init_2x2048(struct RR_2x2048* rr)
 	rr->output[1] = rr->output[0] = 0;
 }
 
-static float sum_2x2048(struct RR_2x2048* rr)
+static float sum_2x2048(float data[2][2048])
 {
 	float res = 0;
 	uint32_t i;
 	for(i = 0; i < 2048; i ++) {
-		res += rr->input[0][i];
+		res += data[0][i];
 	}
 	for(i = 0; i < 2048; i ++) {
-		res += rr->input[1][i];
+		res += data[1][i];
 	}
 	return res;
 }
 
-static int copy_to_dev_2x2048(struct RR_2x2048* dest, struct RR_2x2048* src)
+static int copy_input_to_dev_2x2048(float dest[2][2048], float src[2][2048])
 {
-	cudaError_t err = cudaMemcpy(dest, src, sizeof(*dest), cudaMemcpyHostToDevice);
+	cudaError_t err = cudaMemcpy(dest, src, sizeof(float[2][2048]), cudaMemcpyHostToDevice);
 	if(cudaSuccess != err)
 	{
 		fprintf(stderr, "copy input - cudaMemcpy: %s\n", cudaGetErrorString(err));
@@ -153,9 +158,9 @@ static int copy_to_dev_2x2048(struct RR_2x2048* dest, struct RR_2x2048* src)
 	return 0;
 }
 
-static int copy_to_host_2x2048(struct RR_2x2048* dest, struct RR_2x2048* src)
+static int copy_output_to_host_2x2048(float dest[2], float src[2])
 {
-	cudaError_t err = cudaMemcpy(dest, src, sizeof(*dest), cudaMemcpyDeviceToHost);
+	cudaError_t err = cudaMemcpy(dest, src, sizeof(float[2]), cudaMemcpyDeviceToHost);
 	if(cudaSuccess != err)
 	{
 		fprintf(stderr, "copy output - cudaMemcpy: %s\n", cudaGetErrorString(err));
@@ -168,7 +173,7 @@ static int test_reduce_2x2048()
 {
 	cudaError_t err = cudaSuccess;
 	struct RR_2x2048 rr, *dev_rr;
-	cudaEvent_t start, stop;
+	struct START_STOP ss;
 	float gpu_time = 0;
 	int res = 0;
 
@@ -178,21 +183,21 @@ static int test_reduce_2x2048()
 	init_2x2048(&rr);
 
 	do {
-		if((res = copy_to_dev_2x2048(dev_rr, &rr)))
+		if((res = copy_input_to_dev_2x2048(dev_rr->input, rr.input)))
 			break;
 
-		if((res = start_time(&start, &stop)))
+		if((res = start_time(&ss)))
 			break;
 
 		reduce_2x2048<<<2, 0x400>>>(dev_rr);
 
-		if((res = stop_time(start, stop, &gpu_time)))
+		if((res = stop_time(&ss, &gpu_time)))
 			break;
 
-		if((res = copy_to_host_2x2048(&rr, dev_rr)))
+		if((res = copy_output_to_host_2x2048(rr.output, dev_rr->output)))
 			break;
 
-		printf("GOLD: %.8g\n", sum_2x2048(&rr));
+		printf("GOLD: %.8g\n", sum_2x2048(rr.input));
 		printf("CALC: %.8g (%g ms, %s)\n", rr.output[0] + rr.output[1], gpu_time, __func__);
 	}while(0);
 
@@ -233,13 +238,13 @@ __global__ static void reduce_64x64(struct RR_64x64* rr)
 		rr->output[j] = *ss;
 }
 
-__global__ static void reduce_64x64_1(struct RR_64x64* rr)
+__global__ static void reduce_1x64(float data[64])
 {
 	volatile uint32_t i = threadIdx.x;
 
 	__shared__ float ss[0x20];
 
-	ss[i] = rr->output[i] + rr->output[i + 0x20];
+	ss[i] = data[i] + data[i + 0x20];
 
 	ss[i] += ss[i + 0x010];
 	ss[i] += ss[i + 0x008];
@@ -247,7 +252,7 @@ __global__ static void reduce_64x64_1(struct RR_64x64* rr)
 	ss[i] += ss[i + 0x002];
 	ss[i] += ss[i + 0x001];
 	if(!i)
-		rr->output[0] = *ss;
+		data[0] = *ss;
 }
 
 static void init_64x64(struct RR_64x64* rr)
@@ -262,21 +267,21 @@ static void init_64x64(struct RR_64x64* rr)
 	}
 }
 
-static float sum_64x64(struct RR_64x64* rr)
+static float sum_64x64(float data[64][64])
 {
 	float res = 0;
 	uint32_t i, j;
 	for(j = 0; j < 64; j ++) {
 		for(i = 0; i < 64; i ++) {
-			res += rr->input[j][i];
+			res += data[j][i];
 		}
 	}
 	return res;
 }
 
-static int copy_to_dev_64x64(struct RR_64x64* dest, struct RR_64x64* src)
+static int copy_input_to_dev_64x64(float dest[64][64], float src[64][64])
 {
-	cudaError_t err = cudaMemcpy(dest, src, sizeof(*dest), cudaMemcpyHostToDevice);
+	cudaError_t err = cudaMemcpy(dest, src, sizeof(float[64][64]), cudaMemcpyHostToDevice);
 	if(cudaSuccess != err)
 	{
 		fprintf(stderr, "copy input - cudaMemcpy: %s\n", cudaGetErrorString(err));
@@ -285,9 +290,9 @@ static int copy_to_dev_64x64(struct RR_64x64* dest, struct RR_64x64* src)
 	return 0;
 }
 
-static int copy_to_host_64x64(struct RR_64x64* dest, struct RR_64x64* src)
+static int copy_output_to_host_64x64(float dest[64], float src[64])
 {
-	cudaError_t err = cudaMemcpy(dest, src, sizeof(*dest), cudaMemcpyDeviceToHost);
+	cudaError_t err = cudaMemcpy(dest, src, sizeof(float[64]), cudaMemcpyDeviceToHost);
 	if(cudaSuccess != err)
 	{
 		fprintf(stderr, "copy output - cudaMemcpy: %s\n", cudaGetErrorString(err));
@@ -300,7 +305,7 @@ static int test_reduce_64x64()
 {
 	cudaError_t err = cudaSuccess;
 	struct RR_64x64 rr, *dev_rr;
-	cudaEvent_t start, stop;
+	struct START_STOP ss;
 	float gpu_time = 0;
 	int res = 0;
 
@@ -310,22 +315,22 @@ static int test_reduce_64x64()
 	init_64x64(&rr);
 
 	do {
-		if((res = copy_to_dev_64x64(dev_rr, &rr)))
+		if((res = copy_input_to_dev_64x64(dev_rr->input, rr.input)))
 			break;
     
-		if((res = start_time(&start, &stop)))
+		if((res = start_time(&ss)))
 			break;
 
 		reduce_64x64<<<64, 0x20>>>(dev_rr);
-		reduce_64x64_1<<<1, 0x20>>>(dev_rr);
+		reduce_1x64<<<1, 0x20>>>(dev_rr->output);
 
-		if((res = stop_time(start, stop, &gpu_time)))
+		if((res = stop_time(&ss, &gpu_time)))
 			break;
 
-		if((res = copy_to_host_64x64(&rr, dev_rr)))
+		if((res = copy_output_to_host_64x64(rr.output, dev_rr->output)))
 			break;
 
-		printf("GOLD: %.8g\n", sum_64x64(&rr));
+		printf("GOLD: %.8g\n", sum_64x64(rr.input));
 		printf("CALC: %.8g (%g ms, %s)\n", rr.output[0], gpu_time, __func__);
 	}while(0);
 
